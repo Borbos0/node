@@ -1,41 +1,37 @@
 require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
 
-const http = require('http')
-const getUsers = require('./modules/users')
-const getHello = require('./modules/hello')
+const userRoutes = require('./routes/userRoutes');
+const bookRoutes = require('./routes/bookRoutes');
+const cors = require('./middleware/cors');
+const logger = require('./middleware/logger');
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
-const PORT = process.env.PORT
-const HOST = process.env.HOST
+const PORT = process.env.PORT || 3005;
+const HOST = process.env.HOST || '127.0.0.1';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/backend';
 
-const server = http.createServer((request, response) => {
-    const url = request.url
+const app = express();
 
-    if (url.startsWith('/users')) {
-    response.status = 200;
-    response.statusMessage = "OK"
-    response.header = "Content-Type: application/json"
-    response.write(getUsers())
-    response.end();
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => {
+    console.error('MongoDB connection error:', err.message);
+    console.log('Сервер работает, но БД недоступна. Запустите MongoDB!');
+  });
 
-    return;
-    }
+app.use(cors);
+app.use(logger);
+app.use(express.json());
 
-    if (url.startsWith('/hello')) {
-    response.status = 200
-    response.header = "Content-Type: text/plain"
-    response.write(getHello(url))
-    response.end()
-    return
-  }
+app.use('/users', userRoutes);
+app.use('/books', bookRoutes);
 
-    response.status = 200;
-    response.statusMessage = "OK"
-    response.header = "Content-Type: text/plain"
-    response.write("Hello, world")
-    response.end();
-    
-})
+app.use(notFoundHandler);
 
-server.listen(PORT, HOST, () => {
-    console.log(`Сервер запущен по адресу http://${HOST}:${PORT}`)
-})
+app.use(errorHandler);
+
+app.listen(PORT, HOST, () => {
+  console.log(`Сервер запущен по адресу http://${HOST}:${PORT}`);
+});
